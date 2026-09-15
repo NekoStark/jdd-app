@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   TEMA
+   Il modo scuro segue prefers-color-scheme (comportamento predefinito di
+   Tailwind v4): non c'è un interruttore, l'app si adegua al sistema.
+   ========================================================================== */
+@theme {
+  /* Senza uno stack dedicato i kanji cadono sul font latino di sistema e su
+     Android vengono resi con glifi cinesi. */
+  --font-jp: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic Medium",
+             "Noto Sans JP", "Meiryo", system-ui, sans-serif;
+
+  /* Colori di stato. Verde e rosso distano ΔE 4.1 in deuteranopia: per un
+     daltonico sono lo stesso colore. Ovunque compaiano sono accompagnati da
+     un'etichetta scritta — il colore non porta mai il significato da solo.
+     Contrasti WCAG misurati, non stimati: vedi README. */
+  --color-ok:     #0ca30c;   /* pallino: 3.35:1 su carta chiara, 5.32:1 su scura */
+  --color-ok-700: #006300;   /* bottone in chiaro: 7.54:1 col testo bianco       */
+  --color-ok-600: #15803d;   /* bottone in scuro:  5.02:1 col bianco, 3.56:1 sulla carta */
+  --color-ko:     #d03b3b;   /* pallino e bottone: 4.80:1 col bianco             */
+}
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+  }
+
+  /* Alpine è caricato in defer: senza questo le sezioni con x-show lampeggiano
+     tutte insieme prima che il framework parta. */
+  [x-cloak] {
+    display: none !important;
+  }
+
+  /* Furigana: piccolo, staccato di un filo e sempre più tenue del kanji.
+     color-mix su currentColor lo fa seguire il tema senza duplicare la regola. */
+  rt {
+    /* Il pavimento conta più del rapporto: a 0.4em il furigana di una frase a
+       24px verrebbe 9.6px, illeggibile. Sotto i 12px non si scende mai. Per la
+       parola grande (48px) il rapporto vince e resta 19.2px come prima. */
+    font-size: max(0.4em, 0.75rem);
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    color: color-mix(in oklab, currentColor 60%, transparent);
+  }
+
+  button {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Il preflight di Tailwind v4 non tocca il cursore dei button: senza questa
+     regola resta la freccia del browser. I disabilitati restano esclusi. */
+  button:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+}

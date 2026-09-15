@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vocabolario giapponese</title>
+
+<link rel="stylesheet" href="./app.css">
+
+<link rel="manifest" href="./manifest.webmanifest">
+<!-- la barra di sistema segue il tema: il manifest non accetta media query -->
+<meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#020617" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="./icons/icon-192.png">
+<!-- iOS non legge il manifest: servono i meta dedicati -->
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Vocabolario">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<script>
+/* Va registrato prima di Alpine: l'evento può scattare subito al caricamento. */
+window.__pwa = { deferred: null, updateReady: false, registration: null };
+addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  window.__pwa.deferred = e;
+  dispatchEvent(new CustomEvent('pwa:installable'));
+});
+addEventListener('appinstalled', () => {
+  window.__pwa.deferred = null;
+  dispatchEvent(new CustomEvent('pwa:installed'));
+});
+</script>
+
+<script defer src="./alpine.min.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
+
+<div x-data="vocabApp" x-init="init()" class="mx-auto max-w-xl px-4 py-6 sm:py-10">
+
+  <header class="mb-5 flex items-center justify-between gap-3">
+    <h1 class="text-base font-semibold tracking-tight">Vocabolario giapponese</h1>
+    <span x-show="hasDeck" x-cloak x-text="slotLabel"
+          class="shrink-0 rounded-full bg-slate-900 px-2.5 py-1 text-xs font-medium text-white dark:bg-white dark:text-slate-900"></span>
+  </header>
+
+  <!-- ====================== IMPORT ====================== -->
+  <section x-show="!hasDeck" x-cloak
+           class="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
+    <h2 class="text-base font-semibold">Carica un file JSON</h2>
+    <p class="mx-auto mt-1.5 max-w-xs text-sm text-slate-500 dark:text-slate-400">
+      Per iniziare devi caricare un file JSON con il vocabolario.
+    </p>
+    <input type="file" accept=".json,application/json" @change="importFile($event)"
+           class="mt-5 block w-full cursor-pointer text-sm text-slate-500 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-slate-900 file:px-4 file:py-2.5 file:font-medium file:text-white hover:file:bg-slate-700 dark:text-slate-400 dark:file:bg-white dark:file:text-slate-900 dark:hover:file:bg-slate-200">
+    <p x-show="error" x-text="error" class="mt-4 text-sm font-medium text-ko"></p>
+  </section>
+
+  <!-- ====================== SESSIONE ====================== -->
+  <section x-show="hasDeck" x-cloak>
+
+    <p class="mb-4 flex flex-wrap items-baseline gap-x-2 text-xs text-slate-500 dark:text-slate-400">
+      <span x-text="sessionDate"></span>
+      <span aria-hidden="true">&middot;</span>
+      <span><span x-text="deck.length"></span> parole nel mazzo</span>
+      <span aria-hidden="true">&middot;</span>
+      <span><span x-text="dueCount"></span> in scadenza oggi</span>
+    </p>
+
+    <p x-show="items.length === 0 && !sessionDone"
+       class="rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-800 dark:bg-slate-900">
+      <span class="block text-sm text-slate-500 dark:text-slate-400">
+        Nessuna parola in scadenza in questo momento.
+      </span>
+      <button @click="fillSession(true)"
+              class="mt-4 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-700 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200">
+        Proponi comunque 3 parole
+      </button>
+    </p>
+
+    <!-- ---------- una parola per volta ---------- -->
+    <template x-if="current">
+      <article class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-900/5 dark:bg-slate-900 dark:ring-white/10 sm:p-7">
+
+        <!-- Avanzamento: dice solo a che punto sei, non com'è andata. L'esito
+             per segmento sarebbe affidato al solo colore, che verde/rosso non
+             può portare da solo; il riepilogo finale lo scrive a parole. -->
+        <div class="flex items-center gap-3">
+          <div class="flex flex-1 gap-1.5" role="presentation">
+            <template x-for="(s, i) in items" :key="s.uid">
+              <span class="h-1 flex-1 rounded-full transition-colors"
+                    :class="i < currentIndex ? 'bg-slate-900 dark:bg-white'
+                          : i === currentIndex ? 'bg-slate-400 dark:bg-slate-500'
+                          : 'bg-slate-200 dark:bg-slate-800'"></span>
+            </template>
+          </div>
+          <p class="shrink-0 text-xs font-medium text-slate-500 dark:text-slate-400">
+            Parola <span x-text="currentIndex + 1"></span> di <span x-text="items.length"></span>
+          </p>
+        </div>
+
+        <!-- parola con furigana -->
+        <p class="mt-9 text-center font-jp text-5xl leading-[1.75] sm:text-6xl">
+          <template x-for="(seg, i) in entry(current).segments" :key="i">
+            <ruby><span x-text="seg.text"></span><rt x-text="seg.ruby || ''"></rt></ruby>
+          </template>
+        </p>
+
+        <!-- frase d'esempio con furigana -->
+        <p x-show="entry(current).exampleSentence"
+           class="mt-5 text-center font-jp text-2xl leading-[2.1] text-slate-600 dark:text-slate-300 sm:text-3xl">
+          <template x-for="(seg, i) in exampleSegments(current)" :key="i">
+            <ruby><span x-text="seg.text"></span><rt x-text="seg.ruby || ''"></rt></ruby>
+          </template>
+        </p>
+
+        <!-- soluzione -->
+        <div class="mt-9">
+          <button @click="current.revealed = !current.revealed"
+                  x-text="current.revealed ? 'Nascondi soluzione' : 'Mostra soluzione'"
+                  class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"></button>
+
+          <!-- Niente x-transition: in uscita il pannello resta dipinto mentre il
+               contenuto si è già ri-agganciato alla parola nuova, e per un
+               istante ne mostra la traduzione prima che tu provi a ricordarla. -->
+          <dl x-show="current.revealed"
+              class="mt-3 space-y-3 rounded-xl bg-slate-50 p-4 dark:bg-slate-800/60">
+            <div>
+              <dt class="text-[11px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">Traduzione</dt>
+              <dd class="mt-0.5 text-base" x-text="entry(current).meaning"></dd>
+              <dd class="text-sm text-slate-500 dark:text-slate-400" x-text="romajiOf(entry(current))"></dd>
+            </div>
+            <div x-show="entry(current).exampleSentence" class="border-t border-slate-200 pt-3 dark:border-slate-700">
+              <dt class="text-[11px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">Frase</dt>
+              <dd class="mt-0.5 text-base" x-text="entry(current).exampleSentence?.meaning"></dd>
+              <dd class="text-sm text-slate-500 dark:text-slate-400" x-text="romajiOf(entry(current).exampleSentence, true)"></dd>
+            </div>
+          </dl>
+        </div>
+
+        <!-- azioni: finché non se ne sceglie una si resta su questa parola -->
+        <div class="mt-5 grid grid-cols-2 gap-3">
+          <button @click="answer(currentIndex, 'ok')"
+                  class="min-h-12 rounded-xl bg-ok-700 px-4 text-sm font-semibold text-white transition hover:opacity-90 dark:bg-ok-600">
+            Indovinata
+          </button>
+          <button @click="answer(currentIndex, 'ko')"
+                  class="min-h-12 rounded-xl bg-ko px-4 text-sm font-semibold text-white transition hover:opacity-90">
+            Sbagliata
+          </button>
+        </div>
+        <button @click="skip(currentIndex)"
+                class="mt-2.5 w-full rounded-xl py-2.5 text-sm font-medium text-slate-500 transition hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800">
+          Salta
+        </button>
+
+      </article>
+    </template>
+
+    <!-- ---------- riepilogo di fine sessione ---------- -->
+    <template x-if="sessionDone">
+      <div class="space-y-4">
+
+        <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-900/5 dark:bg-slate-900 dark:ring-white/10 sm:p-7">
+          <h2 class="text-base font-semibold">Sessione completata</h2>
+          <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Prossima sessione: <span x-text="nextSlotLabel"></span>.
+          </p>
+
+          <ul class="mt-4 divide-y divide-slate-100 dark:divide-slate-800">
+            <template x-for="slot in items" :key="slot.uid">
+              <li class="flex items-start justify-between gap-4 py-3">
+                <span class="font-jp text-xl leading-none" x-text="slot.key"></span>
+                <span class="text-right">
+                  <span class="inline-flex items-center gap-1.5 text-sm font-medium">
+                    <span class="size-2 shrink-0 rounded-full"
+                          :class="slot.status === 'ok' ? 'bg-ok' : slot.status === 'ko' ? 'bg-ko' : 'bg-slate-400'"></span>
+                    <span x-text="outcomeLabel(slot)"></span>
+                  </span>
+                  <span class="mt-0.5 block text-xs text-slate-500 dark:text-slate-400" x-text="nextDueLabel(slot)"></span>
+                </span>
+              </li>
+            </template>
+          </ul>
+
+          <p x-show="skippedThisSession.length" class="mt-3 text-xs text-slate-500 dark:text-slate-400">
+            Saltate e sostituite: <span class="font-jp" x-text="skippedThisSession.join('  ')"></span>
+          </p>
+        </div>
+
+        <!-- oggi -->
+        <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-900/5 dark:bg-slate-900 dark:ring-white/10 sm:p-7">
+          <h2 class="text-base font-semibold">Oggi</h2>
+          <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400" x-text="sessionDate"></p>
+          <dl class="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
+            <div class="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
+              <dt class="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                <span class="size-2 shrink-0 rounded-full bg-ok"></span> Indovinate
+              </dt>
+              <dd class="mt-1 text-2xl font-semibold" x-text="todayStats.ok"></dd>
+            </div>
+            <div class="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
+              <dt class="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                <span class="size-2 shrink-0 rounded-full bg-ko"></span> Sbagliate
+              </dt>
+              <dd class="mt-1 text-2xl font-semibold" x-text="todayStats.ko"></dd>
+            </div>
+            <div class="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
+              <dt class="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                <span class="size-2 shrink-0 rounded-full bg-slate-400"></span> Saltate
+              </dt>
+              <dd class="mt-1 text-2xl font-semibold" x-text="todayStats.skip"></dd>
+            </div>
+          </dl>
+        </div>
+
+        <!-- settimana -->
+        <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-900/5 dark:bg-slate-900 dark:ring-white/10 sm:p-7">
+          <h2 class="text-base font-semibold">Ultimi 7 giorni</h2>
+          <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+            <span x-text="weekStats.total"></span> parole ripassate in tutto
+          </p>
+          <dl class="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
+            <div class="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
+              <dt class="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                <span class="size-2 shrink-0 rounded-full bg-ok"></span> Indovinate
+              </dt>
+              <dd class="mt-1 text-2xl font-semibold" x-text="weekStats.ok"></dd>
+            </div>
+            <div class="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
+              <dt class="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                <span class="size-2 shrink-0 rounded-full bg-ko"></span> Sbagliate
+              </dt>
+              <dd class="mt-1 text-2xl font-semibold" x-text="weekStats.ko"></dd>
+            </div>
+            <div class="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
+              <dt class="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                <span class="size-2 shrink-0 rounded-full bg-slate-400"></span> Saltate
+              </dt>
+              <dd class="mt-1 text-2xl font-semibold" x-text="weekStats.skip"></dd>
+            </div>
+          </dl>
+
+          <div class="mt-5 overflow-x-auto">
+            <table class="w-full border-collapse text-sm">
+              <thead>
+                <tr class="border-b border-slate-200 text-[11px] font-medium uppercase tracking-wider text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                  <th scope="col" class="py-2 text-left font-medium">Giorno</th>
+                  <th scope="col" class="py-2 pl-2 text-right font-medium">
+                    <span class="inline-flex items-center gap-1"><span class="size-1.5 rounded-full bg-ok"></span> Indov.</span>
+                  </th>
+                  <th scope="col" class="py-2 pl-2 text-right font-medium">
+                    <span class="inline-flex items-center gap-1"><span class="size-1.5 rounded-full bg-ko"></span> Sbagl.</span>
+                  </th>
+                  <th scope="col" class="py-2 pl-2 text-right font-medium">
+                    <span class="inline-flex items-center gap-1"><span class="size-1.5 rounded-full bg-slate-400"></span> Salt.</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                <template x-for="day in weekDays" :key="day.date">
+                  <tr :class="day.date === today ? 'font-medium' : 'text-slate-500 dark:text-slate-400'">
+                    <th scope="row" class="py-2 text-left font-[inherit]" x-text="day.label"></th>
+                    <td class="py-2 pl-2 text-right tabular-nums" x-text="day.ok"></td>
+                    <td class="py-2 pl-2 text-right tabular-nums" x-text="day.ko"></td>
+                    <td class="py-2 pl-2 text-right tabular-nums" x-text="day.skip"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </template>
+
+    <!-- ---------- aggiornamento disponibile ---------- -->
+    <p x-show="updateReady" x-cloak
+       class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-900 p-4 text-sm text-white dark:bg-white dark:text-slate-900">
+      <span>È disponibile una nuova versione.</span>
+      <button @click="applyUpdate()"
+              class="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-slate-900 transition hover:bg-slate-200 dark:bg-slate-900 dark:text-white dark:hover:bg-slate-700">
+        Aggiorna
+      </button>
+    </p>
+
+    <!-- ---------- gestione ---------- -->
+    <details class="mt-6 rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+      <summary class="cursor-pointer list-none px-5 py-4 text-sm font-medium marker:content-none">
+        Gestione e backup
+      </summary>
+
+      <div class="space-y-5 border-t border-slate-200 px-5 py-5 text-sm dark:border-slate-800">
+
+        <div>
+          <p class="text-slate-500 dark:text-slate-400">
+            File caricato: <span class="text-slate-900 dark:text-slate-100" x-text="deckMeta?.fileName || '—'"></span>
+            <span class="block text-xs" x-text="deckMeta?.importedAt || '—'"></span>
+          </p>
+          <label class="mt-3 block">
+            <span class="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">Sostituisci il file</span>
+            <input type="file" accept=".json,application/json" @change="importFile($event)"
+                   class="mt-1.5 block w-full cursor-pointer text-sm text-slate-500 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:font-medium file:text-slate-900 dark:text-slate-400 dark:file:bg-slate-800 dark:file:text-slate-100">
+          </label>
+          <p x-show="error" x-text="error" class="mt-2 text-sm font-medium text-ko"></p>
+        </div>
+
+        <div class="flex flex-wrap gap-2 border-t border-slate-200 pt-5 dark:border-slate-800">
+          <button @click="resetSession()"
+                  class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium transition hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800">
+            Rigenera la sessione corrente
+          </button>
+          <button @click="resetProgress()"
+                  class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-ko transition hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800">
+            Azzera lo storico dei ripassi
+          </button>
+        </div>
+
+        <div class="border-t border-slate-200 pt-5 dark:border-slate-800">
+          <span class="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Backup (mazzo, storico e statistiche)
+          </span>
+          <div class="mt-2 flex flex-wrap items-center gap-3">
+            <button @click="exportBackup()"
+                    class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium transition hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800">
+              Esporta
+            </button>
+            <input type="file" accept=".json,application/json" @change="importBackup($event)"
+                   class="min-w-0 flex-1 cursor-pointer text-xs text-slate-500 file:mr-2 file:cursor-pointer file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:font-medium file:text-slate-900 dark:text-slate-400 dark:file:bg-slate-800 dark:file:text-slate-100">
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-200 pt-5 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+          <span class="inline-flex items-center gap-1.5">
+            <span class="size-1.5 rounded-full" :class="online ? 'bg-ok' : 'bg-slate-400'"></span>
+            <span x-text="online ? 'Online' : 'Offline (l\'app funziona lo stesso)'"></span>
+          </span>
+          <span x-show="installed">App installata</span>
+          <button x-show="canInstall" @click="installApp()"
+                  class="rounded-lg border border-slate-200 px-3 py-1.5 font-medium text-slate-900 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800">
+            Installa sul dispositivo
+          </button>
+        </div>
+
+        <p x-show="!storageOk" class="rounded-lg bg-slate-100 p-3 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+          Attenzione: localStorage non è disponibile in questo contesto, i dati non verranno
+          salvati tra un caricamento e l'altro della pagina.
+        </p>
+
+      </div>
+    </details>
+
+  </section>
+</div>
+
+<script>
+/* =========================================================================
+   CONFIGURAZIONE
+   ========================================================================= */
+const CFG = {
+  wordsPerSession: 3,
+  daysIfCorrect: 10,   // indovinata -> non riproposta per N giorni
+  daysIfWrong: 1,      // sbagliata  -> riproposta il giorno dopo
+  longVowel: 'macron', // 'macron' (kōhī) oppure 'double' (koohii)
+  slots: [             // from incluso, to escluso (ore locali)
+    { id: 'morning', label: 'Mattina',        from: 5,  to: 12 },
+    { id: 'midday',  label: 'Metà giornata',  from: 12, to: 18 },
+    { id: 'evening', label: 'Sera',           from: 18, to: 29 } // 29 = 5:00 del giorno dopo
+  ]
+};
+
+const KEYS = {
+  deck: 'jp-vocab:deck',
+  progress: 'jp-vocab:progress',
+  session: 'jp-vocab:session',
+  stats: 'jp-vocab:stats'
+};
+
+/* =========================================================================
+   STORAGE (con fallback in memoria)
+   ========================================================================= */
+const store = (() => {
+  let ok = true;
+  try {
+    localStorage.setItem('jp-vocab:test', '1');
+    localStorage.removeItem('jp-vocab:test');
+  } catch (e) { ok = false; }
+  const mem = {};
+  return {
+    ok,
+    get(key, fallback) {
+      try {
+        const raw = ok ? localStorage.getItem(key) : mem[key];
+        return raw ? JSON.parse(raw) : fallback;
+      } catch (e) { return fallback; }
+    },
+    set(key, value) {
+      const raw = JSON.stringify(value);
+      if (ok) { try { localStorage.setItem(key, raw); } catch (e) {} }
+      else { mem[key] = raw; }
+    },
+    del(key) {
+      if (ok) { try { localStorage.removeItem(key); } catch (e) {} }
+      else { delete mem[key]; }
+    }
+  };
+})();
+
+/* =========================================================================
+   DATE
+   ========================================================================= */
+const ymd = d => {
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+};
+const addDays = (isoDate, days) => {
+  const [y, m, d] = isoDate.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + days);
+  return ymd(dt);
+};
+
+/** Etichetta breve di una data ISO: "lun 15/09". */
+function dayLabel(isoDate) {
+  const [y, m, d] = isoDate.split('-').map(Number);
+  return new Date(y, m - 1, d)
+    .toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: '2-digit' });
+}
+
+/** Slot corrente + data logica della sessione (0:00-4:59 appartiene alla sera precedente). */
+function currentSlot(now = new Date()) {
+  const h = now.getHours();
+  const slot = CFG.slots.find(s => (h >= s.from && h < s.to)) || CFG.slots[CFG.slots.length - 1];
+  const date = h < CFG.slots[0].from ? addDays(ymd(now), -1) : ymd(now);
+  return { ...slot, date, sessionId: `${date}:${slot.id}` };
+}
+
+function nextSlot(now = new Date()) {
+  const cur = currentSlot(now);
+  const i = CFG.slots.findIndex(s => s.id === cur.id);
+  return CFG.slots[(i + 1) % CFG.slots.length];
+}
+
+/* =========================================================================
+   ROMAJI (Hepburn, da kana)
+   ========================================================================= */
+const KANA = {
+  // youon e combinazioni estese (2 caratteri)
+  'きゃ':'kya','きゅ':'kyu','きょ':'kyo','しゃ':'sha','しゅ':'shu','しょ':'sho',
+  'ちゃ':'cha','ちゅ':'chu','ちょ':'cho','にゃ':'nya','にゅ':'nyu','にょ':'nyo',
+  'ひゃ':'hya','ひゅ':'hyu','ひょ':'hyo','みゃ':'mya','みゅ':'myu','みょ':'myo',
+  'りゃ':'rya','りゅ':'ryu','りょ':'ryo','ぎゃ':'gya','ぎゅ':'gyu','ぎょ':'gyo',
+  'じゃ':'ja','じゅ':'ju','じょ':'jo','ぢゃ':'ja','ぢゅ':'ju','ぢょ':'jo',
+  'びゃ':'bya','びゅ':'byu','びょ':'byo','ぴゃ':'pya','ぴゅ':'pyu','ぴょ':'pyo',
+  'ふぁ':'fa','ふぃ':'fi','ふぇ':'fe','ふぉ':'fo','ふゅ':'fyu',
+  'うぃ':'wi','うぇ':'we','うぉ':'wo','ゔぁ':'va','ゔぃ':'vi','ゔぇ':'ve','ゔぉ':'vo',
+  'てぃ':'ti','でぃ':'di','とぅ':'tu','どぅ':'du','てゅ':'tyu','でゅ':'dyu',
+  'しぇ':'she','じぇ':'je','ちぇ':'che',
+  // gojuon
+  'あ':'a','い':'i','う':'u','え':'e','お':'o',
+  'か':'ka','き':'ki','く':'ku','け':'ke','こ':'ko',
+  'が':'ga','ぎ':'gi','ぐ':'gu','げ':'ge','ご':'go',
+  'さ':'sa','し':'shi','す':'su','せ':'se','そ':'so',
+  'ざ':'za','じ':'ji','ず':'zu','ぜ':'ze','ぞ':'zo',
+  'た':'ta','ち':'chi','つ':'tsu','て':'te','と':'to',
+  'だ':'da','ぢ':'ji','づ':'zu','で':'de','ど':'do',
+  'な':'na','に':'ni','ぬ':'nu','ね':'ne','の':'no',
+  'は':'ha','ひ':'hi','ふ':'fu','へ':'he','ほ':'ho',
+  'ば':'ba','び':'bi','ぶ':'bu','べ':'be','ぼ':'bo',
+  'ぱ':'pa','ぴ':'pi','ぷ':'pu','ぺ':'pe','ぽ':'po',
+  'ま':'ma','み':'mi','む':'mu','め':'me','も':'mo',
+  'や':'ya','ゆ':'yu','よ':'yo',
+  'ら':'ra','り':'ri','る':'ru','れ':'re','ろ':'ro',
+  'わ':'wa','ゐ':'wi','ゑ':'we','を':'o','ゔ':'vu',
+  'ぁ':'a','ぃ':'i','ぅ':'u','ぇ':'e','ぉ':'o','ゃ':'ya','ゅ':'yu','ょ':'yo',
+  '、':', ','。':'.','！':'!','？':'?','　':' '
+};
+const MACRON = { a:'ā', i:'ī', u:'ū', e:'ē', o:'ō' };
+
+/** Katakana -> hiragana (lascia intatti ー e i caratteri non kana). */
+function toHiragana(str) {
+  return [...str].map(ch => {
+    const c = ch.codePointAt(0);
+    return (c >= 0x30A1 && c <= 0x30F6) ? String.fromCodePoint(c - 0x60) : ch;
+  }).join('');
+}
+
+function kanaToRomaji(str) {
+  if (!str) return '';
+  const s = toHiragana(str);
+  const tokens = [];
+  for (let i = 0; i < s.length;) {
+    const two = s.substr(i, 2);
+    if (KANA[two]) { tokens.push({ t: 'r', v: KANA[two] }); i += 2; continue; }
+    const c = s[i];
+    if (c === 'っ')      tokens.push({ t: 'sokuon' });
+    else if (c === 'ん') tokens.push({ t: 'n' });
+    else if (c === 'ー') tokens.push({ t: 'long' });
+    else if (KANA[c])    tokens.push({ t: 'r', v: KANA[c] });
+    else                 tokens.push({ t: 'r', v: c }); // kanji senza lettura, punteggiatura, ecc.
+    i += 1;
+  }
+
+  let out = '';
+  tokens.forEach((tk, i) => {
+    const nextV = tokens[i + 1]?.t === 'r' ? tokens[i + 1].v : '';
+    if (tk.t === 'r') {
+      out += tk.v;
+    } else if (tk.t === 'n') {
+      out += /^[aiueoy]/.test(nextV) ? "n'" : 'n';
+    } else if (tk.t === 'sokuon') {
+      if (nextV.startsWith('ch')) out += 't';
+      else if (nextV) out += nextV[0];
+    } else if (tk.t === 'long') {
+      const m = out.match(/([aiueo])$/);
+      if (m) out = CFG.longVowel === 'macron'
+        ? out.slice(0, -1) + MACRON[m[1]]
+        : out + m[1];
+    }
+  });
+  return out.trim();
+}
+
+/* Particelle riconosciute come segmento a sé stante: servono a separare le parole
+   nel romaji e a rendere は/へ con la pronuncia corretta. */
+const PARTICLES = new Set(['を','は','が','に','へ','で','と','も','や','か','から','まで','より','ね','よ','の']);
+const PARTICLE_READING = { 'は':'wa', 'へ':'e', 'を':'o' };
+
+/** Stacca le particelle finali dai segmenti in soli kana: 「パンを」-> 「パン」+「を」. */
+function splitTrailingParticles(segments) {
+  const out = [];
+  for (const seg of segments) {
+    if (seg.ruby || seg.text.length < 3) { out.push(seg); continue; }
+    let text = seg.text;
+    const tail = [];
+    // il residuo deve restare di almeno 2 caratteri: evita di spezzare 「この」 in 「こ」+「の」
+    while (text.length > 2 && PARTICLES.has(text.slice(-1))) {
+      tail.unshift({ text: text.slice(-1) });
+      text = text.slice(0, -1);
+    }
+    out.push({ text }, ...tail);
+  }
+  return out;
+}
+
+/** Romaji a partire dai segments: usa ruby dove c'è, spazia attorno alle particelle.
+    `split` = true per le frasi (scorpora le particelle), false per le singole parole. */
+function romajiFromSegments(segments = [], split = false) {
+  let out = '', prevParticle = false;
+  for (const seg of (split ? splitTrailingParticles(segments) : segments)) {
+    const isParticle = !seg.ruby && PARTICLES.has(seg.text);
+    const chunk = isParticle
+      ? (PARTICLE_READING[seg.text] ?? kanaToRomaji(seg.text))
+      : kanaToRomaji(seg.ruby || seg.text);
+    if (!chunk) continue;
+    const isPunct = /^[.,!?]/.test(chunk);
+    if (out && !isPunct && (isParticle || prevParticle)) out += ' ';
+    out += chunk;
+    prevParticle = isParticle;
+  }
+  return out.replace(/\s+([.,!?])/g, '$1').trim();
+}
+
+/* =========================================================================
+   APP
+   ========================================================================= */
+document.addEventListener('alpine:init', () => {
+  Alpine.data('vocabApp', () => ({
+    deck: [],
+    deckMeta: null,
+    progress: {},
+    stats: {},          // { 'YYYY-MM-DD': { ok, ko, skip } }
+    session: null,
+    error: '',
+    now: Date.now(),
+    storageOk: store.ok,
+    online: navigator.onLine,
+    canInstall: !!window.__pwa?.deferred,
+    installed: window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true,
+    updateReady: false,
+
+    /* ---------- ciclo di vita ---------- */
+    init() {
+      const saved = store.get(KEYS.deck, null);
+      if (saved?.items?.length) {
+        this.deck = saved.items;
+        this.deckMeta = { fileName: saved.fileName, importedAt: saved.importedAt };
+      }
+      this.progress = store.get(KEYS.progress, {});
+      this.stats = store.get(KEYS.stats, {});
+      this.session = store.get(KEYS.session, null);
+      this.ensureSession();
+      // controlla ogni minuto se è cambiato lo slot orario
+      setInterval(() => { this.now = Date.now(); this.ensureSession(); }, 60000);
+
+      // stato PWA
+      addEventListener('online',  () => { this.online = true; });
+      addEventListener('offline', () => { this.online = false; });
+      addEventListener('pwa:installable', () => { this.canInstall = true; });
+      addEventListener('pwa:installed', () => { this.canInstall = false; this.installed = true; });
+      addEventListener('pwa:updateready', () => { this.updateReady = true; });
+      if (window.__pwa?.updateReady) this.updateReady = true;
+    },
+
+    /* ---------- getters ---------- */
+    get hasDeck() { return this.deck.length > 0; },
+    get slot() { return currentSlot(new Date(this.now)); },
+    get slotLabel() { return this.slot.label; },
+    get sessionDate() { return this.slot.date; },
+    get nextSlotLabel() { return nextSlot(new Date(this.now)).label; },
+    get today() { return this.slot.date; },
+    get items() { return this.session?.items ?? []; },
+    get sessionDone() {
+      return this.items.length > 0 && this.items.every(s => s.status !== 'pending');
+    },
+    get dueCount() {
+      return this.deck.filter(e => this.dueOf(e) <= this.today).length;
+    },
+
+    /* parola corrente: la prima ancora senza esito. Si avanza solo scegliendo
+       un'azione, perché answer()/skip() cambiano lo stato di questo slot. */
+    get current() { return this.items.find(s => s.status === 'pending') ?? null; },
+    get currentIndex() { return this.items.findIndex(s => s.status === 'pending'); },
+    get skippedThisSession() { return this.session?.used ?? []; },
+
+    /* ---------- statistiche ---------- */
+    get todayStats() { return this.statsFor([this.today]); },
+    get weekStats() { return this.statsFor(this.lastDays(7)); },
+    get weekDays() {
+      return this.lastDays(7).map(date => ({
+        date, label: dayLabel(date), ...this.statsFor([date])
+      }));
+    },
+
+    /* ---------- import ---------- */
+    importFile(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      this.error = '';
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(reader.result);
+          const items = Array.isArray(data) ? data : data.words;
+          if (!Array.isArray(items) || items.length === 0) {
+            throw new Error('Il file deve contenere un array di parole.');
+          }
+          const invalid = items.filter(it => !it?.word || !Array.isArray(it.segments));
+          if (invalid.length) {
+            throw new Error(`${invalid.length} voci non valide: servono i campi "word" e "segments".`);
+          }
+          this.deck = items;
+          this.deckMeta = {
+            fileName: file.name,
+            importedAt: new Date().toLocaleString('it-IT')
+          };
+          store.set(KEYS.deck, { ...this.deckMeta, items });
+          // il mazzo è cambiato: ricostruisco la sessione, lo storico resta
+          this.session = null;
+          this.ensureSession();
+        } catch (e) {
+          this.error = 'File non valido: ' + e.message;
+        }
+      };
+      reader.onerror = () => { this.error = 'Impossibile leggere il file.'; };
+      reader.readAsText(file);
+      event.target.value = '';
+    },
+
+    /* ---------- accesso al mazzo ---------- */
+    keyOf(entry) { return entry.word; },
+    entry(slot) {
+      return this.deck.find(e => this.keyOf(e) === slot.key) ?? { segments: [], meaning: '' };
+    },
+    exampleSegments(slot) { return this.entry(slot).exampleSentence?.segments ?? []; },
+    dueOf(entry) { return this.progress[this.keyOf(entry)]?.due ?? this.today; },
+
+    romajiOf(obj, isSentence = false) {
+      if (!obj) return '';
+      if (obj.romaji) return obj.romaji;               // usa il campo del JSON se c'è
+      return romajiFromSegments(obj.segments, isSentence);
+    },
+
+    /* ---------- sessione ---------- */
+    ensureSession() {
+      if (!this.hasDeck) return;
+      if (this.session?.id !== this.slot.sessionId) {
+        this.session = { id: this.slot.sessionId, used: [], items: [] };
+        this.fillSession();
+      }
+    },
+
+    /** Riempie gli slot vuoti. force = ignora le scadenze. */
+    fillSession(force = false) {
+      const missing = CFG.wordsPerSession - this.session.items.length;
+      if (missing > 0) this.session.items.push(...this.pick(missing, force));
+      this.save();
+    },
+
+    /** Sceglie N parole: più scadute prima, escludendo quelle già usate nella sessione. */
+    pick(count, force = false) {
+      const used = new Set(this.session.used.concat(this.session.items.map(s => s.key)));
+      const pool = this.deck
+        .filter(e => !used.has(this.keyOf(e)))
+        .filter(e => force || this.dueOf(e) <= this.today);
+
+      // mescola, poi ordina per scadenza crescente (ordinamento stabile => casualità a parità)
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      pool.sort((a, b) => this.dueOf(a).localeCompare(this.dueOf(b)));
+
+      return pool.slice(0, count).map(e => ({
+        uid: this.keyOf(e) + ':' + Math.random().toString(36).slice(2, 8),
+        key: this.keyOf(e),
+        status: 'pending',
+        revealed: false
+      }));
+    },
+
+    /* ---------- azioni ---------- */
+    answer(index, result) {
+      const slot = this.session.items[index];
+      if (!slot || slot.status !== 'pending') return;
+      const days = result === 'ok' ? CFG.daysIfCorrect : CFG.daysIfWrong;
+      this.schedule(slot.key, addDays(this.today, days), result);
+      this.track(result);
+      slot.status = result;
+      slot.revealed = true;
+      this.save();
+    },
+
+    skip(index) {
+      const slot = this.session.items[index];
+      if (!slot || slot.status !== 'pending') return;
+      // riproponibile oggi (in una sessione successiva), ma non di nuovo in questa
+      this.schedule(slot.key, this.today, 'skip');
+      this.track('skip');
+      this.session.used.push(slot.key);
+      const replacement = this.pick(1);
+      if (replacement.length) this.session.items.splice(index, 1, replacement[0]);
+      else this.session.items.splice(index, 1);
+      this.save();
+    },
+
+    schedule(key, due, result) {
+      const p = this.progress[key] ?? { ok: 0, ko: 0, skip: 0 };
+      p.due = due;
+      p.last = result;
+      p[result] = (p[result] ?? 0) + 1;
+      this.progress[key] = p;
+    },
+
+    /** Conteggio giornaliero degli esiti, usato dai riepiloghi. */
+    track(result) {
+      const day = this.stats[this.today] ?? { ok: 0, ko: 0, skip: 0 };
+      day[result] = (day[result] ?? 0) + 1;
+      this.stats[this.today] = day;
+    },
+
+    /** Le ultime N date (oggi incluso), dalla più vecchia alla più recente. */
+    lastDays(n) {
+      return Array.from({ length: n }, (_, i) => addDays(this.today, i - n + 1));
+    },
+
+    statsFor(dates) {
+      const t = { ok: 0, ko: 0, skip: 0 };
+      for (const d of dates) {
+        const s = this.stats[d];
+        if (!s) continue;
+        t.ok += s.ok ?? 0; t.ko += s.ko ?? 0; t.skip += s.skip ?? 0;
+      }
+      t.total = t.ok + t.ko + t.skip;
+      return t;
+    },
+
+    outcomeLabel(slot) {
+      return { ok: 'Indovinata', ko: 'Sbagliata', skip: 'Saltata' }[slot.status] ?? '';
+    },
+
+    nextDueLabel(slot) {
+      return { ok: 'torna tra ' + CFG.daysIfCorrect + ' giorni',
+               ko: 'torna domani',
+               skip: '' }[slot.status] ?? '';
+    },
+
+    /* ---------- gestione ---------- */
+    resetSession() {
+      this.session = null;
+      this.ensureSession();
+    },
+
+    resetProgress() {
+      this.progress = {};
+      this.stats = {};
+      store.del(KEYS.progress);
+      store.del(KEYS.stats);
+      this.resetSession();
+    },
+
+    /* ---------- PWA ---------- */
+    async installApp() {
+      const prompt = window.__pwa?.deferred;
+      if (!prompt) return;
+      prompt.prompt();
+      const { outcome } = await prompt.userChoice;
+      window.__pwa.deferred = null;
+      this.canInstall = false;
+      if (outcome === 'accepted') this.installed = true;
+    },
+
+    applyUpdate() {
+      const waiting = window.__pwa?.registration?.waiting;
+      if (waiting) waiting.postMessage({ type: 'SKIP_WAITING' });
+      else location.reload();
+    },
+
+    /* ---------- backup ---------- */
+    exportBackup() {
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        deck: { ...this.deckMeta, items: this.deck },
+        progress: this.progress,
+        stats: this.stats
+      };
+      const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)],
+        { type: 'application/json' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `vocabolario-backup-${this.today}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+
+    importBackup(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      this.error = '';
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(reader.result);
+          if (!Array.isArray(data?.deck?.items) || typeof data.progress !== 'object') {
+            throw new Error('Struttura non riconosciuta.');
+          }
+          this.deck = data.deck.items;
+          this.deckMeta = { fileName: data.deck.fileName, importedAt: data.deck.importedAt };
+          this.progress = data.progress;
+          this.stats = data.stats ?? {};   // backup precedenti non hanno le statistiche
+          store.set(KEYS.deck, { ...this.deckMeta, items: this.deck });
+          store.set(KEYS.progress, this.progress);
+          store.set(KEYS.stats, this.stats);
+          this.resetSession();
+        } catch (e) {
+          this.error = 'Backup non valido: ' + e.message;
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    },
+
+    save() {
+      store.set(KEYS.progress, this.progress);
+      store.set(KEYS.stats, this.stats);
+      store.set(KEYS.session, this.session);
+    }
+  }));
+});
+
+/* =========================================================================
+   SERVICE WORKER
+   ========================================================================= */
+if ('serviceWorker' in navigator) {
+  addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('./sw.js');
+      window.__pwa.registration = reg;
+
+      const notify = worker => {
+        // "installed" con un controller già attivo = aggiornamento in attesa
+        if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+          window.__pwa.updateReady = true;
+          dispatchEvent(new CustomEvent('pwa:updateready'));
+        }
+      };
+      if (reg.waiting) notify({ state: 'installed' });
+      reg.addEventListener('updatefound', () => {
+        const worker = reg.installing;
+        worker?.addEventListener('statechange', () => notify(worker));
+      });
+
+      // il nuovo service worker ha preso il controllo: ricarica una sola volta
+      let reloading = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (reloading) return;
+        reloading = true;
+        location.reload();
+      });
+    } catch (e) {
+      console.warn('Service worker non registrato:', e);
+    }
+  });
+}
+</script>
+
+</body>
+</html>

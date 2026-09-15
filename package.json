@@ -1,0 +1,19 @@
+{
+  "name": "vocabolario-pwa",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ripasso quotidiano del vocabolario giapponese, tre volte al giorno.",
+  "scripts": {
+    "build": "npm run clean && npm run build:static && npm run build:css && npm run build:js",
+    "clean": "rm -rf dist",
+    "build:static": "mkdir -p dist && cp index.html sw.js manifest.webmanifest dist/ && cp -R icons dist/",
+    "build:css": "tailwindcss -i src/app.css -o dist/app.css --minify",
+    "build:js": "cp node_modules/alpinejs/dist/cdn.min.js dist/alpine.min.js",
+    "serve": "npm run build && python3 -m http.server 8080 --directory dist"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.3",
+    "alpinejs": "^3.14.1",
+    "tailwindcss": "^4.3.3"
+  }
+}
