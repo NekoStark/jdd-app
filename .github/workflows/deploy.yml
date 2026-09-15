@@ -27,9 +27,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      # Richiede Pages già attivo sul repo con source "GitHub Actions":
+      # il GITHUB_TOKEN non ha i permessi per attivarlo da sé.
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
