@@ -26,6 +26,14 @@
     color-scheme: light dark;
   }
 
+  /* Su iOS la PWA gira a tutto schermo sotto la barra di stato, per via di
+     status-bar-style black-translucent + viewport-fit=cover: senza questo il
+     titolo finisce sotto l'orologio. L'inset vale 0 dove la barra non c'è,
+     quindi su desktop e nel browser non cambia niente. */
+  body {
+    padding-top: env(safe-area-inset-top);
+  }
+
   /* Alpine è caricato in defer: senza questo le sezioni con x-show lampeggiano
      tutte insieme prima che il framework parta. */
   [x-cloak] {

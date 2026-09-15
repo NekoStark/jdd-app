@@ -1,6 +1,6 @@
 /* Service worker: precache di tutti gli asset, così l'app funziona offline.
    Cambia CACHE_VERSION a ogni modifica dei file per forzare l'aggiornamento. */
-const CACHE_VERSION = 'v7';
+const CACHE_VERSION = 'v8';
 const CACHE_NAME = `jp-vocab-${CACHE_VERSION}`;
 
 const ASSETS = [
