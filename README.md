@@ -91,6 +91,30 @@ file minificato.
 Il tema chiaro/scuro segue l'impostazione di sistema (`prefers-color-scheme`),
 non c'è un interruttore.
 
+### Il badge della fascia oraria
+
+In alto a destra, tinta + icona piatta (SVG inline, niente emoji): sole che
+sorge per la mattina, sole pieno per metà giornata, falce di luna per la sera.
+L'etichetta resta scritta, quindi l'icona è decorativa (`aria-hidden`) e il
+colore non porta mai il significato da solo.
+
+| fascia | chiaro (testo su chip) | scuro (testo su chip) |
+|---|---|---|
+| Mattina | `#973c00` su `#fef3c6` — 6.36:1 | `#ffd230` su `#282114` — 11.01:1 |
+| Metà giornata | `#00598a` su `#dff2fe` — 6.53:1 | `#74d4ff` su `#02213a` — 9.84:1 |
+| Sera | `#5d0ec0` su `#ede9fe` — 7.73:1 | `#a684ff` su `#1b193a` — 5.91:1 |
+
+Nel tema scuro la sera usa `violet-400`, non `violet-300`: i passi chiari di
+azzurro e viola hanno quasi la stessa luminosità e in deuteranopia collassano
+(ΔE 5.0, sotto ogni soglia utile). Scendendo di un gradino la coppia si separa
+per luminosità oltre che per tinta — ΔE 15.2 in deuteranopia, 20.7 a vista
+piena. In chiaro i passi `-800` erano già distinti (ΔE 9.6 / 18.3).
+
+Conta comunque poco per la leggibilità: il badge è **uno solo alla volta**, non
+si confrontano mai due fasce affiancate. La separazione serve a far sentire
+diverse le fasce nell'arco della giornata, non a distinguerle a colpo d'occhio
+una accanto all'altra.
+
 ### Colori degli esiti
 
 Verde e rosso distano ΔE 4.1 in deuteranopia: per un daltonico sono lo stesso

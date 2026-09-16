@@ -40,8 +40,41 @@ addEventListener('appinstalled', () => {
 
   <header class="mb-5 flex items-center justify-between gap-3">
     <h1 class="text-base font-semibold tracking-tight">Vocabolario giapponese</h1>
-    <span x-show="hasDeck" x-cloak x-text="slotLabel"
-          class="shrink-0 rounded-full bg-slate-900 px-2.5 py-1 text-xs font-medium text-white dark:bg-white dark:text-slate-900"></span>
+    <!-- Badge della fascia oraria: tinta + icona per distinguerla al volo.
+         L'etichetta resta scritta, così colore e icona non devono portare da
+         soli il significato; l'icona è quindi decorativa (aria-hidden). -->
+    <span x-show="hasDeck" x-cloak :class="slotChip"
+          class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+           class="size-3.5 shrink-0">
+        <!-- mattina: sole che spunta dall'orizzonte -->
+        <g x-show="slot.id === 'morning'">
+          <path d="M12 3v2"></path>
+          <path d="m5.6 8.6 1.4 1.4"></path>
+          <path d="m18.4 8.6-1.4 1.4"></path>
+          <path d="M8.5 17a3.5 3.5 0 0 1 7 0"></path>
+          <path d="M3 20h18"></path>
+        </g>
+        <!-- metà giornata: sole pieno -->
+        <g x-show="slot.id === 'midday'">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2"></path>
+          <path d="M12 20v2"></path>
+          <path d="M2 12h2"></path>
+          <path d="M20 12h2"></path>
+          <path d="m4.9 4.9 1.5 1.5"></path>
+          <path d="m17.6 17.6 1.5 1.5"></path>
+          <path d="m19.1 4.9-1.5 1.5"></path>
+          <path d="m6.4 17.6-1.5 1.5"></path>
+        </g>
+        <!-- sera: falce di luna -->
+        <g x-show="slot.id === 'evening'">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"></path>
+        </g>
+      </svg>
+      <span x-text="slotLabel"></span>
+    </span>
   </header>
 
   <!-- ====================== IMPORT ====================== -->
@@ -384,6 +417,19 @@ const CFG = {
   ]
 };
 
+/* Tinta del badge della fascia oraria. In chiaro una tinta tenue col testo
+   scuro, in scuro un velo della stessa tinta col testo chiaro: non è il
+   ribaltamento automatico del tema chiaro, sono due scelte separate.
+   La sera scende di un gradino (violet-400, non -300) perché al buio i passi
+   chiari di azzurro e viola hanno la stessa luminosità e in deuteranopia
+   collassano: è la differenza di luminosità a tenerli distinti, non la tinta.
+   Contrasti e separazioni misurati, non stimati: vedi README. */
+const SLOT_CHIP = {
+  morning: 'bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-300',
+  midday:  'bg-sky-100 text-sky-800 dark:bg-sky-400/15 dark:text-sky-300',
+  evening: 'bg-violet-100 text-violet-800 dark:bg-violet-400/15 dark:text-violet-400'
+};
+
 /* Geometria delle due torte di riepilogo. Il raggio e lo spessore sono in
    unità del viewBox (0 0 100 100); il distacco fra le fette è aria in tinta
    con la carta, non un bordo disegnato attorno. */
@@ -651,6 +697,7 @@ document.addEventListener('alpine:init', () => {
     get hasDeck() { return this.deck.length > 0; },
     get slot() { return currentSlot(new Date(this.now)); },
     get slotLabel() { return this.slot.label; },
+    get slotChip() { return SLOT_CHIP[this.slot.id] ?? ''; },
     get sessionDate() { return this.slot.date; },
     get nextSlotLabel() { return nextSlot(new Date(this.now)).label; },
     get today() { return this.slot.date; },
