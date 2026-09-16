@@ -134,6 +134,12 @@ perché verde e rosso non si distinguono in deuteranopia (vedi *Colori degli
 esiti*): chi non separa le fette a colpo d'occhio le legge lo stesso. Le fette
 sono staccate da 2px di carta, non da un bordo disegnato.
 
+Nell'elenco delle parole appena viste si può **premere su una parola per
+riaprirne la scheda**: furigana, traduzione, romaji e frase d'esempio, tutto
+già in chiaro — il ripasso è finito, non c'è più niente da indovinare, quindi
+non c'è nemmeno il bottone *Mostra soluzione*. Se ne apre una alla volta: tre
+schede aperte non starebbero in uno schermo.
+
 Il riepilogo si ferma a questi due totali: il dettaglio giorno per giorno non
 c'è più. Lo storico completo resta comunque nel backup JSON.
 

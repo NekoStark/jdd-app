@@ -167,18 +167,57 @@ addEventListener('appinstalled', () => {
             Prossima sessione: <span x-text="nextSlotLabel"></span>.
           </p>
 
+          <!-- Ogni riga apre la scheda della parola, con furigana, frase e
+               traduzione già in chiaro: qui il ripasso è finito, non c'è più
+               niente da indovinare e nascondere la soluzione sarebbe un
+               passaggio in più per nulla. -->
           <ul class="mt-4 divide-y divide-slate-100 dark:divide-slate-800">
             <template x-for="slot in items" :key="slot.uid">
-              <li class="flex items-start justify-between gap-4 py-3">
-                <span class="font-jp text-xl leading-none" x-text="slot.key"></span>
-                <span class="text-right">
-                  <span class="inline-flex items-center gap-1.5 text-sm font-medium">
-                    <span class="size-2 shrink-0 rounded-full"
-                          :class="slot.status === 'ok' ? 'bg-ok' : slot.status === 'ko' ? 'bg-ko' : 'bg-slate-400'"></span>
-                    <span x-text="outcomeLabel(slot)"></span>
+              <li>
+                <button type="button" @click="toggleReview(slot.uid)"
+                        :aria-expanded="reviewing === slot.uid"
+                        :aria-controls="'scheda-' + slot.uid"
+                        class="flex w-full items-start justify-between gap-4 rounded-lg py-3 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                  <span class="flex min-w-0 items-center gap-2">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+                         class="size-3.5 shrink-0 text-slate-400 transition-transform dark:text-slate-500"
+                         :class="reviewing === slot.uid && 'rotate-90'">
+                      <path d="m9 18 6-6-6-6"></path>
+                    </svg>
+                    <span class="font-jp text-xl leading-none" x-text="slot.key"></span>
                   </span>
-                  <span class="mt-0.5 block text-xs text-slate-500 dark:text-slate-400" x-text="nextDueLabel(slot)"></span>
-                </span>
+                  <span class="shrink-0 text-right">
+                    <span class="inline-flex items-center gap-1.5 text-sm font-medium">
+                      <span class="size-2 shrink-0 rounded-full"
+                            :class="slot.status === 'ok' ? 'bg-ok' : slot.status === 'ko' ? 'bg-ko' : 'bg-slate-400'"></span>
+                      <span x-text="outcomeLabel(slot)"></span>
+                    </span>
+                    <span class="mt-0.5 block text-xs text-slate-500 dark:text-slate-400" x-text="nextDueLabel(slot)"></span>
+                  </span>
+                </button>
+
+                <div x-show="reviewing === slot.uid" :id="'scheda-' + slot.uid"
+                     class="mb-3 rounded-xl bg-slate-50 p-4 text-center dark:bg-slate-800/60">
+                  <p class="font-jp text-3xl leading-[1.9]">
+                    <template x-for="(seg, i) in entry(slot).segments" :key="i">
+                      <ruby><span x-text="seg.text"></span><rt x-text="seg.ruby || ''"></rt></ruby>
+                    </template>
+                  </p>
+                  <p class="mt-1 text-base" x-text="entry(slot).meaning"></p>
+                  <p class="text-sm text-slate-500 dark:text-slate-400" x-text="romajiOf(entry(slot))"></p>
+
+                  <div x-show="entry(slot).exampleSentence"
+                       class="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700">
+                    <p class="font-jp text-xl leading-[2.2] text-slate-600 dark:text-slate-300">
+                      <template x-for="(seg, i) in exampleSegments(slot)" :key="i">
+                        <ruby><span x-text="seg.text"></span><rt x-text="seg.ruby || ''"></rt></ruby>
+                      </template>
+                    </p>
+                    <p class="mt-1 text-sm" x-text="entry(slot).exampleSentence?.meaning"></p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400" x-text="romajiOf(entry(slot).exampleSentence, true)"></p>
+                  </div>
+                </div>
               </li>
             </template>
           </ul>
@@ -583,6 +622,7 @@ document.addEventListener('alpine:init', () => {
     canInstall: !!window.__pwa?.deferred,
     installed: window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true,
     updateReady: false,
+    reviewing: null,    // uid della parola aperta nel riepilogo, una per volta
 
     /* ---------- ciclo di vita ---------- */
     init() {
@@ -707,6 +747,7 @@ document.addEventListener('alpine:init', () => {
       if (!this.hasDeck) return;
       if (this.session?.id !== this.slot.sessionId) {
         this.session = { id: this.slot.sessionId, used: [], items: [] };
+        this.reviewing = null;
         this.fillSession();
       }
     },
@@ -794,6 +835,12 @@ document.addEventListener('alpine:init', () => {
       }
       t.total = t.ok + t.ko + t.skip;
       return t;
+    },
+
+    /** Apre la scheda di una parola nel riepilogo, o la richiude. Una sola
+        alla volta: tre schede aperte non ci starebbero in uno schermo. */
+    toggleReview(uid) {
+      this.reviewing = this.reviewing === uid ? null : uid;
     },
 
     outcomeLabel(slot) {
