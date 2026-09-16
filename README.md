@@ -103,7 +103,8 @@ sei, non com'è andata. I contrasti sono misurati, non stimati:
 | bottone *Indovinata*, tema chiaro | `#006300` | 7.54:1 col bianco |
 | bottone *Indovinata*, tema scuro | `#15803d` | 5.02:1 col bianco |
 | bottone *Sbagliata* | `#d03b3b` | 4.80:1 col bianco |
-| pallini negli elenchi e nelle tabelle | `#0ca30c` / `#d03b3b` | ≥ 3.35:1 sulla carta |
+| pallini negli elenchi | `#0ca30c` / `#d03b3b` | ≥ 3.35:1 sulla carta |
+| fette delle torte di riepilogo | `#0ca30c` / `#d03b3b` / `slate-400` | ≥ 3.35:1 sulla carta |
 
 ## Aggiornamenti
 
@@ -123,9 +124,18 @@ Ogni fascia oraria propone 3 parole, **una per volta**: finché non scegli
 *Indovinata*, *Sbagliata* o *Salta* non si passa alla successiva. *Salta* non
 consuma il posto, rimpiazza la parola con un'altra nella stessa posizione.
 
-A sessione finita compare il riepilogo: le parole appena viste, il totale di
-oggi e quello degli ultimi 7 giorni (indovinate / sbagliate / saltate), con il
-dettaglio giorno per giorno.
+A sessione finita compare il riepilogo: le parole appena viste, poi **due
+grafici a torta affiancati** — uno per oggi, uno per gli ultimi 7 giorni — con
+al centro la percentuale di indovinate e sotto la legenda scritta (indovinate /
+sbagliate / saltate).
+
+La torta porta solo la proporzione. I tre numeri restano scritti nella legenda,
+perché verde e rosso non si distinguono in deuteranopia (vedi *Colori degli
+esiti*): chi non separa le fette a colpo d'occhio le legge lo stesso. Le fette
+sono staccate da 2px di carta, non da un bordo disegnato.
+
+Il riepilogo si ferma a questi due totali: il dettaglio giorno per giorno non
+c'è più. Lo storico completo resta comunque nel backup JSON.
 
 ## Dati e backup
 

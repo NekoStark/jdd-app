@@ -188,86 +188,62 @@ addEventListener('appinstalled', () => {
           </p>
         </div>
 
-        <!-- oggi -->
+        <!-- ---------- colpo d'occhio: oggi e settimana affiancate ---------- -->
         <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-900/5 dark:bg-slate-900 dark:ring-white/10 sm:p-7">
-          <h2 class="text-base font-semibold">Oggi</h2>
-          <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400" x-text="sessionDate"></p>
-          <dl class="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
-            <div class="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
-              <dt class="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                <span class="size-2 shrink-0 rounded-full bg-ok"></span> Indovinate
-              </dt>
-              <dd class="mt-1 text-2xl font-semibold" x-text="todayStats.ok"></dd>
-            </div>
-            <div class="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
-              <dt class="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                <span class="size-2 shrink-0 rounded-full bg-ko"></span> Sbagliate
-              </dt>
-              <dd class="mt-1 text-2xl font-semibold" x-text="todayStats.ko"></dd>
-            </div>
-            <div class="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
-              <dt class="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                <span class="size-2 shrink-0 rounded-full bg-slate-400"></span> Saltate
-              </dt>
-              <dd class="mt-1 text-2xl font-semibold" x-text="todayStats.skip"></dd>
-            </div>
-          </dl>
-        </div>
+          <h2 class="text-base font-semibold">Riepilogo</h2>
 
-        <!-- settimana -->
-        <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-900/5 dark:bg-slate-900 dark:ring-white/10 sm:p-7">
-          <h2 class="text-base font-semibold">Ultimi 7 giorni</h2>
-          <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-            <span x-text="weekStats.total"></span> parole ripassate in tutto
-          </p>
-          <dl class="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
-            <div class="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
-              <dt class="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                <span class="size-2 shrink-0 rounded-full bg-ok"></span> Indovinate
-              </dt>
-              <dd class="mt-1 text-2xl font-semibold" x-text="weekStats.ok"></dd>
-            </div>
-            <div class="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
-              <dt class="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                <span class="size-2 shrink-0 rounded-full bg-ko"></span> Sbagliate
-              </dt>
-              <dd class="mt-1 text-2xl font-semibold" x-text="weekStats.ko"></dd>
-            </div>
-            <div class="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
-              <dt class="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                <span class="size-2 shrink-0 rounded-full bg-slate-400"></span> Saltate
-              </dt>
-              <dd class="mt-1 text-2xl font-semibold" x-text="weekStats.skip"></dd>
-            </div>
-          </dl>
+          <div class="mt-5 grid grid-cols-2 gap-4 sm:gap-8">
+            <template x-for="chart in summaryCharts" :key="chart.id">
+              <figure>
+                <figcaption class="text-center">
+                  <span class="block text-sm font-medium" x-text="chart.title"></span>
+                  <span class="block text-xs text-slate-500 dark:text-slate-400" x-text="chart.subtitle"></span>
+                </figcaption>
 
-          <div class="mt-5 overflow-x-auto">
-            <table class="w-full border-collapse text-sm">
-              <thead>
-                <tr class="border-b border-slate-200 text-[11px] font-medium uppercase tracking-wider text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                  <th scope="col" class="py-2 text-left font-medium">Giorno</th>
-                  <th scope="col" class="py-2 pl-2 text-right font-medium">
-                    <span class="inline-flex items-center gap-1"><span class="size-1.5 rounded-full bg-ok"></span> Indov.</span>
-                  </th>
-                  <th scope="col" class="py-2 pl-2 text-right font-medium">
-                    <span class="inline-flex items-center gap-1"><span class="size-1.5 rounded-full bg-ko"></span> Sbagl.</span>
-                  </th>
-                  <th scope="col" class="py-2 pl-2 text-right font-medium">
-                    <span class="inline-flex items-center gap-1"><span class="size-1.5 rounded-full bg-slate-400"></span> Salt.</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                <template x-for="day in weekDays" :key="day.date">
-                  <tr :class="day.date === today ? 'font-medium' : 'text-slate-500 dark:text-slate-400'">
-                    <th scope="row" class="py-2 text-left font-[inherit]" x-text="day.label"></th>
-                    <td class="py-2 pl-2 text-right tabular-nums" x-text="day.ok"></td>
-                    <td class="py-2 pl-2 text-right tabular-nums" x-text="day.ko"></td>
-                    <td class="py-2 pl-2 text-right tabular-nums" x-text="day.skip"></td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
+                <!-- La torta porta solo la proporzione: verde e rosso sono lo
+                     stesso colore in deuteranopia, quindi i tre valori restano
+                     scritti a parole nella legenda qui sotto. -->
+                <div class="relative mx-auto mt-3 w-full max-w-40">
+                  <svg viewBox="0 0 100 100" class="block w-full" role="img" :aria-label="chart.ariaLabel">
+                    <g transform="rotate(-90 50 50)" fill="none" stroke-width="12">
+                      <!-- traccia: si vede solo quando non c'è ancora niente da mostrare -->
+                      <circle x-show="!chart.stats.total" cx="50" cy="50" r="40"
+                              class="stroke-slate-200 dark:stroke-slate-800"></circle>
+                      <!-- Le tre fette sono scritte a mano invece che con un x-for:
+                           dentro <svg> il parser crea <template> nel namespace SVG,
+                           senza .content, e Alpine non ci può ciclare sopra. Anche
+                           x-bind="oggetto" è escluso: fotografa i valori una volta
+                           sola e le fette resterebbero ferme al primo disegno. -->
+                      <circle cx="50" cy="50" r="40" :class="chart.arcs.ok.stroke"
+                              :stroke-dasharray="chart.arcs.ok.dasharray"
+                              :stroke-dashoffset="chart.arcs.ok.dashoffset"></circle>
+                      <circle cx="50" cy="50" r="40" :class="chart.arcs.ko.stroke"
+                              :stroke-dasharray="chart.arcs.ko.dasharray"
+                              :stroke-dashoffset="chart.arcs.ko.dashoffset"></circle>
+                      <circle cx="50" cy="50" r="40" :class="chart.arcs.skip.stroke"
+                              :stroke-dasharray="chart.arcs.skip.dasharray"
+                              :stroke-dashoffset="chart.arcs.skip.dashoffset"></circle>
+                    </g>
+                  </svg>
+                  <!-- il numero al centro sta in HTML, non in <text>: così eredita
+                       i caratteri e le dimensioni del resto dell'interfaccia -->
+                  <div class="absolute inset-0 flex flex-col items-center justify-center" aria-hidden="true">
+                    <span class="text-2xl font-semibold leading-none" x-text="chart.share"></span>
+                    <span class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">indovinate</span>
+                  </div>
+                </div>
+
+                <ul class="mt-4 space-y-1.5">
+                  <template x-for="s in chart.slices" :key="s.key">
+                    <li class="flex items-baseline gap-1.5 text-xs">
+                      <span class="size-2 shrink-0 translate-y-px rounded-full" :class="s.dot"></span>
+                      <span class="text-slate-500 dark:text-slate-400" x-text="s.label"></span>
+                      <span class="ml-auto font-semibold tabular-nums" x-text="s.value"></span>
+                    </li>
+                  </template>
+                </ul>
+              </figure>
+            </template>
           </div>
         </div>
 
@@ -369,6 +345,42 @@ const CFG = {
   ]
 };
 
+/* Geometria delle due torte di riepilogo. Il raggio e lo spessore sono in
+   unità del viewBox (0 0 100 100); il distacco fra le fette è aria in tinta
+   con la carta, non un bordo disegnato attorno. */
+const DONUT = { r: 40, gap: 2 };
+DONUT.circumference = 2 * Math.PI * DONUT.r;
+
+/* Ordine fisso, orario a partire da mezzogiorno: indovinate, sbagliate,
+   saltate. Non segue la classifica, così le fette non si scambiano colore
+   da una sessione all'altra. */
+const OUTCOMES = [
+  { key: 'ok',   label: 'Indovinate', dot: 'bg-ok',         stroke: 'stroke-ok' },
+  { key: 'ko',   label: 'Sbagliate',  dot: 'bg-ko',         stroke: 'stroke-ko' },
+  { key: 'skip', label: 'Saltate',    dot: 'bg-slate-400',  stroke: 'stroke-slate-400' }
+];
+
+/** Le tre fette di una torta: quota, colore ed etichetta di ciascun esito. */
+function donutSlices(stats) {
+  const total = stats.total;
+  // il distacco serve solo dove due fette si toccano davvero
+  const gap = OUTCOMES.filter(o => stats[o.key] > 0).length > 1 ? DONUT.gap : 0;
+  let start = 0;
+  return OUTCOMES.map(o => {
+    const value = stats[o.key] ?? 0;
+    const arc = total ? value / total * DONUT.circumference : 0;
+    // una fetta minuscola resta un filo visibile invece di sparire nel distacco
+    const dash = value ? Math.max(arc - gap, 1) : 0;
+    const slice = {
+      ...o, value,
+      dasharray: `${dash} ${DONUT.circumference - dash}`,
+      dashoffset: -(start + gap / 2)
+    };
+    start += arc;
+    return slice;
+  });
+}
+
 const KEYS = {
   deck: 'jp-vocab:deck',
   progress: 'jp-vocab:progress',
@@ -419,13 +431,6 @@ const addDays = (isoDate, days) => {
   dt.setDate(dt.getDate() + days);
   return ymd(dt);
 };
-
-/** Etichetta breve di una data ISO: "lun 15/09". */
-function dayLabel(isoDate) {
-  const [y, m, d] = isoDate.split('-').map(Number);
-  return new Date(y, m - 1, d)
-    .toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: '2-digit' });
-}
 
 /** Slot corrente + data logica della sessione (0:00-4:59 appartiene alla sera precedente). */
 function currentSlot(now = new Date()) {
@@ -626,10 +631,26 @@ document.addEventListener('alpine:init', () => {
     /* ---------- statistiche ---------- */
     get todayStats() { return this.statsFor([this.today]); },
     get weekStats() { return this.statsFor(this.lastDays(7)); },
-    get weekDays() {
-      return this.lastDays(7).map(date => ({
-        date, label: dayLabel(date), ...this.statsFor([date])
-      }));
+    /* Le due torte affiancate del riepilogo. Stessa forma per entrambe: quello
+       che cambia è solo l'intervallo di giorni da sommare. */
+    get summaryCharts() {
+      return [
+        { id: 'today', title: 'Oggi',            stats: this.todayStats },
+        { id: 'week',  title: 'Ultimi 7 giorni', stats: this.weekStats }
+      ].map(c => {
+        const { ok, ko, skip, total } = c.stats;
+        const slices = donutSlices(c.stats);
+        return {
+          ...c,
+          subtitle: total === 1 ? '1 parola' : `${total} parole`,
+          share: total ? Math.round(ok / total * 100) + '%' : '\u2014',
+          ariaLabel: `${c.title}: ` + (total
+            ? `${ok} indovinate, ${ko} sbagliate, ${skip} saltate su ${total}.`
+            : 'nessuna parola ripassata.'),
+          slices,                                               // legenda scritta
+          arcs: Object.fromEntries(slices.map(s => [s.key, s]))  // fette, per nome
+        };
+      });
     },
 
     /* ---------- import ---------- */
